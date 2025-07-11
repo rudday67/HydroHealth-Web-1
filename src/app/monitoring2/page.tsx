@@ -8,7 +8,7 @@ import AlertAuthorizedMember from "@/components/AlertAuthorizedMember";
 import LogActivity from "@/components/LogActivity";
 import React, { useState, useEffect } from "react";
 
-// Anda bisa menambahkan komponen baru untuk halaman ini di sini nanti
+// Anda bisa menambahkan komponen baru untuk halaman ini di sini nanti (test)
 // Contoh: import SuhuControl from "@/components/SuhuControl";
 
 export default function Monitoring2() {
