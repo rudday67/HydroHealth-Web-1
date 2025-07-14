@@ -13,6 +13,7 @@ import PhControl from "../../components/PhControl";
 import KualitasAir from "@/components/KualitasAir";
 import Kekeruhan from "@/components/Kekeruhan";
 import KetinggianAir from "@/components/KetinggianAir";
+import KetinggianAirDua from "@/components/KetinggianAirDua";
 import AliranAir from "@/components/AliranAir";
 // import Camera1 from "../../components/Camera1";
 import { Button, useDisclosure, Image, Card, CardFooter } from "@nextui-org/react";
@@ -320,9 +321,10 @@ export default function Monitoring() {
             {/* TAMBAHKAN PEMBUNGKUS DI BAWAH INI */}
             <div className="col-span-1 sm:col-span-4 flex justify-center gap-4">
               <KetinggianAir/>
+              <KetinggianAirDua/>
               <AliranAir/>
             </div>          
-            <div className="col-span-1 sm:col-span-2">
+              <div className="col-span-1 sm:col-span-2">
                 {/* <SuhuControl /> */}
               </div>
             </div>
