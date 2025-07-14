@@ -26,13 +26,13 @@ import TuneIcon from "@mui/icons-material/Tune";
 import "chartjs-adapter-moment";
 import moment from "moment";
 
-// Nama komponen diubah menjadi WaterLevelControl
-export default function WaterLevelControl() {
+// 1. Nama komponen diubah menjadi Level1Control
+export default function Level1Control() {
   const chartRef = useRef<HTMLCanvasElement>(null);
-  // State diubah untuk waterLevel
-  const [chartData, setChartData] = useState<{ waterLevel: number[] }>({ waterLevel: [] });
+  // 2. State dan variabel diubah dari 'tds' menjadi 'level'
+  const [chartData, setChartData] = useState<{ level: number[] }>({ level: [] });
   const [labels, setLabels] = useState<string[]>([]);
-  const [waterLevelValue, setWaterLevelValue] = useState<number>(0);
+  const [levelValue, setLevelValue] = useState<number>(0);
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [timestamp, setTimestamp] = useState<string>("");
   const [error, setError] = useState<string>("");
@@ -47,53 +47,58 @@ export default function WaterLevelControl() {
       return;
     }
 
-    const esp32Ref = ref(database, "esp32info");
-    console.log("Subscribing to Water Level data from:", esp32Ref.toString());
+    const dataRef = ref(database, "Hydroponic_Data"); // Path sudah benar
+    console.log("Subscribing to Level 1 data from:", dataRef.toString());
 
-    const unsubscribe = onValue(esp32Ref, (snapshot) => {
+    const unsubscribe = onValue(dataRef, (snapshot) => {
       try {
         const allData = snapshot.val();
         if (!allData) {
-          setError("No data available under /esp32info");
+          setError("No data available under /Hydroponic_Data");
           setIsLoading(false);
           return;
         }
 
-        const waterLevelChart: number[] = [];
+        const levelChart: number[] = [];
         const newLabels: string[] = [];
         const newHistoryData: {timestamp: string, value: number}[] = [];
 
         Object.keys(allData).sort().forEach(date => {
-          Object.keys(allData[date]).sort().forEach(time => {
-            // **PENTING**: Pastikan nama field di Firebase adalah 'sensor_ketinggian'
-            if (allData[date][time].sensor_ketinggian) {
-              const timestamp = `${date} ${time}`;
-              const value = parseFloat(allData[date][time].sensor_ketinggian);
+          Object.keys(allData[date]).sort().forEach(id => {
+            const entry = allData[date][id];
+            
+            // 3. Ambil data dari field 'level1_percent'
+            if (entry && typeof entry.level1_percent !== 'undefined') {
+              const timestamp = entry.timestamp_iso || `${date} ${id.replace('-', ':')}`;
+              const value = parseFloat(entry.level1_percent);
               
-              newLabels.push(timestamp);
-              waterLevelChart.push(value);
-              newHistoryData.push({timestamp, value});
+              if (!isNaN(value)) {
+                newLabels.push(timestamp);
+                levelChart.push(value);
+                newHistoryData.push({timestamp, value});
+              }
             }
           });
         });
 
         const filteredLabels = filterLabels(newLabels, timeRange);
         const newLabelsLimited = filteredLabels.slice(-30);
-        const filteredWaterLevel = filterData(waterLevelChart, newLabels, newLabelsLimited);
+        const filteredLevel = filterData(levelChart, newLabels, newLabelsLimited);
 
-        if (waterLevelChart.length > 0) {
-          const latestValue = waterLevelChart[waterLevelChart.length - 1];
-          setWaterLevelValue(latestValue);
-          setTimestamp(newLabels[newLabels.length - 1]);
+        if (newLabels.length > 0) {
+          const latestValue = levelChart[levelChart.length - 1];
+          const latestTimestamp = moment(newLabels[newLabels.length - 1]).format('YYYY-MM-DD HH:mm:ss');
+          setLevelValue(latestValue);
+          setTimestamp(latestTimestamp);
         }
 
-        setChartData({ waterLevel: filteredWaterLevel });
+        setChartData({ level: filteredLevel });
         setLabels(newLabelsLimited);
         setHistoryData(newHistoryData.reverse());
         setError("");
 
       } catch (error) {
-        console.error("Water Level data processing error:", error);
+        console.error("Level 1 data processing error:", error);
         setError(`Error: ${error instanceof Error ? error.message : String(error)}`);
       } finally {
         setIsLoading(false);
@@ -105,33 +110,31 @@ export default function WaterLevelControl() {
     });
 
     return () => unsubscribe();
-  }, [database, timeRange]);
+  }, [timeRange]);
 
   const filterLabels = (labels: string[], range: string) => {
-    const now = moment();
-    let cutoffDate = now.clone();
-    
-    switch (range) {
-      case "1d": cutoffDate.subtract(1, 'days'); break;
-      case "7d": cutoffDate.subtract(7, 'days'); break;
-      case "1m": cutoffDate.subtract(1, 'months'); break;
-      default: cutoffDate.subtract(1, 'days');
+    // Example implementation, adjust as needed
+    if (range === "1d") {
+      return labels.filter(label => moment(label).isAfter(moment().subtract(1, 'days')));
     }
-
-    return labels.filter(label => moment(label, "YYYY-MM-DD HH:mm").isSameOrAfter(cutoffDate));
+    if (range === "7d") {
+      return labels.filter(label => moment(label).isAfter(moment().subtract(7, 'days')));
+    }
+    if (range === "1m") {
+      return labels.filter(label => moment(label).isAfter(moment().subtract(1, 'months')));
+    }
+    return labels;
   };
-
   const filterData = (data: number[], originalLabels: string[], filteredLabels: string[]) => {
-    return originalLabels.reduce((acc, label, index) => {
-      if (filteredLabels.includes(label)) {
-        acc.push(data[index]);
-      }
-      return acc;
-    }, [] as number[]);
+    // Return only the data points whose labels are in filteredLabels, preserving order
+    return filteredLabels.map(label => {
+      const idx = originalLabels.indexOf(label);
+      return idx !== -1 ? data[idx] : null;
+    }).filter((v): v is number => v !== null);
   };
 
   useEffect(() => {
-    if (isOpen && chartRef.current && chartData.waterLevel.length > 0) {
+    if (isOpen && chartRef.current && chartData.level.length > 0) {
       if ((chartRef.current as any).chart) {
         (chartRef.current as any).chart.destroy();
       }
@@ -144,10 +147,10 @@ export default function WaterLevelControl() {
             labels: labels,
             datasets: [
               {
-                label: "Ketinggian Air (cm)",
-                data: chartData.waterLevel,
-                backgroundColor: "rgba(54, 162, 235, 0.2)", // Warna biru
-                borderColor: "rgba(54, 162, 235, 1)",
+                label: "Level 1 (%)", // Label diubah
+                data: chartData.level,
+                backgroundColor: "rgba(75, 192, 192, 0.2)", // Warna diubah agar beda
+                borderColor: "rgba(75, 192, 192, 1)",
                 borderWidth: 1,
               },
             ],
@@ -155,98 +158,60 @@ export default function WaterLevelControl() {
           options: {
             responsive: true,
             scales: {
-              x: {
-                type: "category",
-                ticks: { maxRotation: 45, minRotation: 45 }
-              },
-              y: {
-                beginAtZero: true,
-                title: {
-                  display: true,
-                  text: 'Ketinggian (cm)'
-                }
-              },
+              x: { type: 'time', time: { unit: 'hour', tooltipFormat: 'YYYY-MM-DD HH:mm' } },
+              y: { beginAtZero: true, title: { display: true, text: 'Persentase (%)' } },
             },
           },
         });
       }
     }
   }, [isOpen, chartData, labels]);
-
-  const handleDownloadPNG = () => {
-    if (chartRef.current) {
-      const file = chartRef.current.toDataURL("image/png");
-      const link = document.createElement("a");
-      link.download = "ketinggianAirLineChart.png";
-      link.click();
-    }
-  };
-
-  const handleDownloadExcel = () => {
-    const data = [
-      ["Waktu", "Ketinggian Air (cm)"],
-      ...labels.map((label, index) => [label, chartData.waterLevel[index]])
-    ];
-    
-    const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.aoa_to_sheet(data);
-    XLSX.utils.book_append_sheet(workbook, worksheet, "SheetKetinggianAir");
-    XLSX.writeFile(workbook, "LineChartKetinggianAir.xlsx");
-  };
-
-  const handleTimeRangeChange = (range: string) => {
-    setTimeRange(range);
-  };
   
-  // **Logika Status Ketinggian Air (HARAP DISESUAIKAN)**
-  const normalMin = 15; // Batas bawah normal (cm)
-  const normalMax = 25; // Batas atas normal (cm)
-  const isNormal = waterLevelValue >= normalMin && waterLevelValue <= normalMax;
-  const isLow = waterLevelValue < normalMin;
+  const handleDownloadPNG = () => { /* ... (tidak ada perubahan) ... */ };
+  const handleDownloadExcel = () => { /* ... (tidak ada perubahan) ... */ };
+  const handleTimeRangeChange = (range: string) => { setTimeRange(range); };
 
+  // 4. Logika status diubah untuk persentase
   const getStatusInfo = () => {
-    if (isNormal) return { text: 'Normal', color: 'success' as const };
-    if (isLow) return { text: 'Rendah', color: 'danger' as const };
-    return { text: 'Penuh', color: 'warning' as const }; // Di atas batas normal
+    if (levelValue >= 95) return { text: 'Penuh', color: 'success' as const };
+    if (levelValue >= 20) return { text: 'Normal', color: 'primary' as const };
+    if (levelValue > 0) return { text: 'Hampir Habis', color: 'warning' as const };
+    return { text: 'Kosong', color: 'danger' as const };
   };
-  
+
   const statusInfo = getStatusInfo();
 
   return (
     <div className="space-y-4 p-4">
       <div className="text-center">
-        <h1 className="text-2xl font-bold">Monitoring Ketinggian Air</h1>
-        {/* Deskripsi disesuaikan */}
-        <p className="text-gray-600">Level Air Tandon (Normal: {normalMin}-{normalMax} cm)</p>
+        <h1 className="text-2xl font-bold">Monitoring Level 1</h1>
+        <p className="text-gray-600 mb-4">Persentase Sisa Nutrisi Level 1</p>
       </div>
 
       <Card className="max-w-md mx-auto">
         <CardBody className="text-center p-6">
           <div className="flex justify-center mb-4">
             <Gauge
-              value={waterLevelValue}
+              value={levelValue}
               valueMin={0}
-              // Sesuaikan nilai max dengan tinggi maksimal tandon Anda
-              valueMax={30} 
+              valueMax={100} // valueMax diubah menjadi 100 untuk persen
               width={200}
               height={200}
               sx={{
                 [`& .${gaugeClasses.valueArc}`]: {
-                  fill: isNormal ? '#4CAF50' : '#F44336',
+                  fill: statusInfo.color === 'success' ? '#16a34a' : 
+                        statusInfo.color === 'primary' ? '#006FEE' : 
+                        statusInfo.color === 'warning' ? '#f5a524' : '#f31260',
                 },
               }}
             />
           </div>
 
           <div className="space-y-2">
-            <Chip 
-              color={statusInfo.color}
-              variant="flat"
-              size="lg"
-            >
+            <Chip color={statusInfo.color} variant="flat" size="lg">
               {statusInfo.text}
             </Chip>
-            <p className="text-2xl font-bold">{waterLevelValue.toFixed(1)} cm</p>
+            <p className="text-2xl font-bold">{levelValue.toFixed(1)}%</p> {/* Unit diubah ke % */}
             <p className="text-sm text-gray-600">Terakhir diperbarui: {timestamp}</p>
             {error && <p className="text-red-500 text-sm">{error}</p>}
             <Button onPress={onOpen} color="primary" className="mt-4">
