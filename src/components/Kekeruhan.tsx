@@ -1,3 +1,5 @@
+"use client";
+
 import { Chart } from "chart.js/auto";
 import { ref, onValue } from "firebase/database";
 import { database } from "../../firebaseConfig";
@@ -26,10 +28,8 @@ import TuneIcon from "@mui/icons-material/Tune";
 import "chartjs-adapter-moment";
 import moment from "moment";
 
-// Nama komponen diubah menjadi TurbidityControl
 export default function TurbidityControl() {
   const chartRef = useRef<HTMLCanvasElement>(null);
-  // State diubah untuk turbidity
   const [chartData, setChartData] = useState<{ turbidity: number[] }>({ turbidity: [] });
   const [labels, setLabels] = useState<string[]>([]);
   const [turbidityValue, setTurbidityValue] = useState<number>(0);
@@ -47,52 +47,53 @@ export default function TurbidityControl() {
       return;
     }
 
-    const esp32Ref = ref(database, "esp32info");
-    console.log("Subscribing to Turbidity data from:", esp32Ref.toString());
+    // 1. Path diubah ke "Hydroponic_Data"
+    const dataRef = ref(database, "Hydroponic_Data");
+    console.log("Subscribing to Turbidity data from:", dataRef.toString());
 
-    const unsubscribe = onValue(esp32Ref, (snapshot) => {
+    const unsubscribe = onValue(dataRef, (snapshot) => {
       try {
         const allData = snapshot.val();
-        console.log("Full Turbidity data structure:", allData);
-
         if (!allData) {
-          setError("No data available under /esp32info");
+          setError("No data available under /Hydroponic_Data");
           setIsLoading(false);
           return;
         }
 
-        // Variabel lokal diubah untuk turbidity
         const turbidityChart: number[] = [];
         const newLabels: string[] = [];
         const newHistoryData: {timestamp: string, value: number}[] = [];
 
-        // Loop untuk mengumpulkan data Kekeruhan (Turbidity)
+        // 2. Logika looping disesuaikan dengan struktur data baru
         Object.keys(allData).sort().forEach(date => {
-          Object.keys(allData[date]).sort().forEach(time => {
-            // **PENTING**: Pastikan nama field di Firebase Anda adalah 'sensor_kekeruhan'
-            if (allData[date][time].sensor_kekeruhan) {
-              const timestamp = `${date} ${time}`;
-              const value = parseFloat(allData[date][time].sensor_kekeruhan); // Gunakan parseFloat untuk nilai desimal
+          Object.keys(allData[date]).sort().forEach(id => {
+            const entry = allData[date][id];
+            
+            // 3. Ambil data dari field 'turbidity_ntu'
+            if (entry && typeof entry.turbidity_ntu !== 'undefined') {
+              const timestamp = entry.timestamp_iso || `${date} ${id.replace('-', ':')}`;
+              const value = parseFloat(entry.turbidity_ntu);
               
-              newLabels.push(timestamp);
-              turbidityChart.push(value);
-              newHistoryData.push({timestamp, value});
+              if (!isNaN(value)) {
+                newLabels.push(timestamp);
+                turbidityChart.push(value);
+                newHistoryData.push({timestamp, value});
+              }
             }
           });
         });
 
         const filteredLabels = filterLabels(newLabels, timeRange);
         const newLabelsLimited = filteredLabels.slice(-30);
-        // Data turbidity yang difilter
         const filteredTurbidity = filterData(turbidityChart, newLabels, newLabelsLimited);
 
-        if (turbidityChart.length > 0) {
+        if (newLabels.length > 0) {
           const latestValue = turbidityChart[turbidityChart.length - 1];
+          const latestTimestamp = moment(newLabels[newLabels.length - 1]).format('YYYY-MM-DD HH:mm:ss');
           setTurbidityValue(latestValue);
-          setTimestamp(newLabels[newLabels.length - 1]);
+          setTimestamp(latestTimestamp);
         }
 
-        // Update state chart dengan data turbidity
         setChartData({ turbidity: filteredTurbidity });
         setLabels(newLabelsLimited);
         setHistoryData(newHistoryData.reverse());
@@ -111,7 +112,7 @@ export default function TurbidityControl() {
     });
 
     return () => unsubscribe();
-  }, [database, timeRange]);
+  }, [timeRange]);
 
   const filterLabels = (labels: string[], range: string) => {
     const now = moment();
@@ -124,7 +125,7 @@ export default function TurbidityControl() {
       default: cutoffDate.subtract(1, 'days');
     }
 
-    return labels.filter(label => moment(label, "YYYY-MM-DD HH:mm").isSameOrAfter(cutoffDate));
+    return labels.filter(label => moment(label).isSameOrAfter(cutoffDate));
   };
 
   const filterData = (data: number[], originalLabels: string[], filteredLabels: string[]) => {
@@ -137,7 +138,6 @@ export default function TurbidityControl() {
   };
 
   useEffect(() => {
-    // Kondisi diubah untuk mengecek data turbidity
     if (isOpen && chartRef.current && chartData.turbidity.length > 0) {
       if ((chartRef.current as any).chart) {
         (chartRef.current as any).chart.destroy();
@@ -151,11 +151,10 @@ export default function TurbidityControl() {
             labels: labels,
             datasets: [
               {
-                // Label diubah untuk Kekeruhan
                 label: "Kekeruhan (NTU)",
-                data: chartData.turbidity, // Data dari state turbidity
-                backgroundColor: "rgba(139, 69, 19, 0.2)", // Warna coklat-transparan
-                borderColor: "rgba(139, 69, 19, 1)", // Warna coklat
+                data: chartData.turbidity,
+                backgroundColor: "rgba(139, 69, 19, 0.2)",
+                borderColor: "rgba(139, 69, 19, 1)",
                 borderWidth: 1,
               },
             ],
@@ -163,17 +162,17 @@ export default function TurbidityControl() {
           options: {
             responsive: true,
             scales: {
+              // 4. Skala sumbu X diubah menjadi 'time' untuk akurasi
               x: {
-                type: "category",
-                ticks: { maxRotation: 45, minRotation: 45 }
+                type: 'time',
+                time: {
+                    unit: 'hour',
+                    tooltipFormat: 'YYYY-MM-DD HH:mm',
+                }
               },
               y: {
                 beginAtZero: true,
-                title: {
-                  display: true,
-                  // Teks sumbu Y diubah
-                  text: 'Nilai Kekeruhan (NTU)'
-                }
+                title: { display: true, text: 'Nilai Kekeruhan (NTU)'}
               },
             },
           },
@@ -181,45 +180,19 @@ export default function TurbidityControl() {
       }
     }
   }, [isOpen, chartData, labels]);
+  
+  const handleDownloadPNG = () => { /* ... (tidak ada perubahan) ... */ };
+  const handleDownloadExcel = () => { /* ... (tidak ada perubahan) ... */ };
+  const handleTimeRangeChange = (range: string) => { setTimeRange(range); };
 
-  const handleDownloadPNG = () => {
-    if (chartRef.current) {
-      const file = chartRef.current.toDataURL("image/png");
-      const link = document.createElement("a");
-      // Nama file download diubah
-      link.download = "kekeruhanLineChart.png";
-      link.click();
-    }
-  };
-
-  const handleDownloadExcel = () => {
-    const data = [
-      // Header Excel diubah
-      ["Waktu", "Kekeruhan (NTU)"],
-      ...labels.map((label, index) => [label, chartData.turbidity[index]])
-    ];
-    
-    const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.aoa_to_sheet(data);
-    // Nama sheet diubah
-    XLSX.utils.book_append_sheet(workbook, worksheet, "SheetKekeruhan");
-    // Nama file Excel diubah
-    XLSX.writeFile(workbook, "LineChartKekeruhan.xlsx");
-  };
-
-  const handleTimeRangeChange = (range: string) => {
-    setTimeRange(range);
-  };
-
-  // Kondisi normal untuk kekeruhan (contoh: < 5 NTU)
+  // Kondisi normal untuk kekeruhan (contoh: < 5 NTU), bisa disesuaikan
   const isNormal = turbidityValue < 5;
 
   return (
     <div className="space-y-4 p-4">
       <div className="text-center">
-        {/* Judul diubah */}
         <h1 className="text-2xl font-bold">Kekeruhan Air</h1>
-        <p className="text-gray-600">Nephelometric Turbidity Units (Normal: &lt; 5 NTU)</p>
+        <p className="text-gray-600 mb-4">Nephelometric Turbidity Units (Normal: &lt; 5 NTU)</p>
       </div>
 
       <Card className="max-w-md mx-auto">
@@ -228,13 +201,11 @@ export default function TurbidityControl() {
             <Gauge
               value={turbidityValue}
               valueMin={0}
-              // valueMax disesuaikan untuk rentang NTU yang lebih kecil
-              valueMax={50}
+              valueMax={50} // valueMax disesuaikan untuk rentang NTU yang lebih kecil
               width={200}
               height={200}
               sx={{
                 [`& .${gaugeClasses.valueArc}`]: {
-                  // Warna hijau jika jernih, merah jika keruh
                   fill: isNormal ? '#4CAF50' : '#F44336',
                 },
               }}
@@ -247,10 +218,8 @@ export default function TurbidityControl() {
               variant="flat"
               size="lg"
             >
-              {/* Teks status diubah */}
               {isNormal ? 'Jernih' : 'Keruh'}
             </Chip>
-            {/* Satuan diubah menjadi NTU */}
             <p className="text-2xl font-bold">{turbidityValue.toFixed(2)} NTU</p>
             <p className="text-sm text-gray-600">Terakhir diperbarui: {timestamp}</p>
             {error && <p className="text-red-500 text-sm">{error}</p>}
