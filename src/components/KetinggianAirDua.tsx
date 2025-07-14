@@ -26,10 +26,10 @@ import TuneIcon from "@mui/icons-material/Tune";
 import "chartjs-adapter-moment";
 import moment from "moment";
 
-// 1. Nama komponen diubah menjadi Level1Control
-export default function Level1Control() {
+// 1. Nama komponen diubah menjadi Level2Control
+export default function Level2Control() {
   const chartRef = useRef<HTMLCanvasElement>(null);
-  // 2. State dan variabel diubah dari 'tds' menjadi 'level'
+  // 2. State dan variabel diubah menjadi 'level'
   const [chartData, setChartData] = useState<{ level: number[] }>({ level: [] });
   const [labels, setLabels] = useState<string[]>([]);
   const [levelValue, setLevelValue] = useState<number>(0);
@@ -47,8 +47,9 @@ export default function Level1Control() {
       return;
     }
 
-    const dataRef = ref(database, "Hydroponic_Data"); // Path sudah benar
-    console.log("Subscribing to Level 1 data from:", dataRef.toString());
+    // Path diubah ke "Hydroponic_Data"
+    const dataRef = ref(database, "Hydroponic_Data");
+    console.log("Subscribing to Level 2 data from:", dataRef.toString());
 
     const unsubscribe = onValue(dataRef, (snapshot) => {
       try {
@@ -67,10 +68,10 @@ export default function Level1Control() {
           Object.keys(allData[date]).sort().forEach(id => {
             const entry = allData[date][id];
             
-            // 3. Ambil data dari field 'level1_percent'
-            if (entry && typeof entry.level1_percent !== 'undefined') {
+            // 3. Ambil data dari field 'level2_percent'
+            if (entry && typeof entry.level2_percent !== 'undefined') {
               const timestamp = entry.timestamp_iso || `${date} ${id.replace('-', ':')}`;
-              const value = parseFloat(entry.level1_percent);
+              const value = parseFloat(entry.level2_percent);
               
               if (!isNaN(value)) {
                 newLabels.push(timestamp);
@@ -98,7 +99,7 @@ export default function Level1Control() {
         setError("");
 
       } catch (error) {
-        console.error("Level 1 data processing error:", error);
+        console.error("Level 2 data processing error:", error);
         setError(`Error: ${error instanceof Error ? error.message : String(error)}`);
       } finally {
         setIsLoading(false);
@@ -113,24 +114,27 @@ export default function Level1Control() {
   }, [timeRange]);
 
   const filterLabels = (labels: string[], range: string) => {
-    // Example implementation, adjust as needed
+    // Example implementation: filter by time range
     if (range === "1d") {
-      return labels.filter(label => moment(label).isAfter(moment().subtract(1, 'days')));
+      const cutoff = moment().subtract(1, "days");
+      return labels.filter(label => moment(label).isAfter(cutoff));
     }
     if (range === "7d") {
-      return labels.filter(label => moment(label).isAfter(moment().subtract(7, 'days')));
+      const cutoff = moment().subtract(7, "days");
+      return labels.filter(label => moment(label).isAfter(cutoff));
     }
     if (range === "1m") {
-      return labels.filter(label => moment(label).isAfter(moment().subtract(1, 'months')));
+      const cutoff = moment().subtract(1, "months");
+      return labels.filter(label => moment(label).isAfter(cutoff));
     }
     return labels;
   };
   const filterData = (data: number[], originalLabels: string[], filteredLabels: string[]) => {
-    // Return only the data points whose labels are in filteredLabels, preserving order
-    return filteredLabels.map(label => {
-      const idx = originalLabels.indexOf(label);
-      return idx !== -1 ? data[idx] : null;
-    }).filter((v): v is number => v !== null);
+    // Example implementation: filter data to match filteredLabels
+    return originalLabels
+      .map((label, idx) => ({ label, value: data[idx] }))
+      .filter(item => filteredLabels.includes(item.label))
+      .map(item => item.value);
   };
 
   useEffect(() => {
@@ -147,10 +151,10 @@ export default function Level1Control() {
             labels: labels,
             datasets: [
               {
-                label: "Level 1 (%)", // Label diubah
+                label: "Level 2 (%)", // Label diubah
                 data: chartData.level,
-                backgroundColor: "rgba(75, 192, 192, 0.2)", // Warna diubah agar beda
-                borderColor: "rgba(75, 192, 192, 1)",
+                backgroundColor: "rgba(255, 206, 86, 0.2)", // Warna diubah
+                borderColor: "rgba(255, 206, 86, 1)",
                 borderWidth: 1,
               },
             ],
@@ -166,12 +170,12 @@ export default function Level1Control() {
       }
     }
   }, [isOpen, chartData, labels]);
-  
+
   const handleDownloadPNG = () => { /* ... (tidak ada perubahan) ... */ };
   const handleDownloadExcel = () => { /* ... (tidak ada perubahan) ... */ };
   const handleTimeRangeChange = (range: string) => { setTimeRange(range); };
 
-  // 4. Logika status diubah untuk persentase
+  // 4. Logika status untuk persentase
   const getStatusInfo = () => {
     if (levelValue >= 95) return { text: 'Penuh', color: 'success' as const };
     if (levelValue >= 20) return { text: 'Normal', color: 'primary' as const };
@@ -184,8 +188,8 @@ export default function Level1Control() {
   return (
     <div className="space-y-4 p-4">
       <div className="text-center">
-        <h1 className="text-2xl font-bold">Monitoring Level 1</h1>
-        <p className="text-gray-600 mb-4">Persentase Sisa Nutrisi Level 1</p>
+        <h1 className="text-2xl font-bold">Monitoring Level 2</h1>
+        <p className="text-gray-600 mb-4">Persentase Sisa Nutrisi Level 2</p>
       </div>
 
       <Card className="max-w-md mx-auto">
@@ -194,7 +198,7 @@ export default function Level1Control() {
             <Gauge
               value={levelValue}
               valueMin={0}
-              valueMax={100} // valueMax diubah menjadi 100 untuk persen
+              valueMax={100} // valueMax adalah 100 untuk persen
               width={200}
               height={200}
               sx={{

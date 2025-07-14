@@ -26,7 +26,8 @@ import TuneIcon from "@mui/icons-material/Tune";
 import "chartjs-adapter-moment";
 import moment from "moment";
 
-export default function TDSControl() {
+// Nama komponen bisa disesuaikan agar lebih spesifik
+export default function TDS1Control() {
   const chartRef = useRef<HTMLCanvasElement>(null);
   const [chartData, setChartData] = useState<{ tds: number[] }>({ tds: [] });
   const [labels, setLabels] = useState<string[]>([]);
@@ -45,55 +46,58 @@ export default function TDSControl() {
       return;
     }
 
-    const esp32Ref = ref(database, "esp32info");
-    console.log("Subscribing to TDS data from:", esp32Ref.toString());
+    // 1. Path diubah ke "Hydroponic_Data"
+    const dataRef = ref(database, "Hydroponic_Data");
+    console.log("Subscribing to TDS data from:", dataRef.toString());
 
-    const unsubscribe = onValue(esp32Ref, (snapshot) => {
+    const unsubscribe = onValue(dataRef, (snapshot) => {
       try {
         const allData = snapshot.val();
-        console.log("Full TDS data structure:", allData);
-
         if (!allData) {
-          setError("No data available under /esp32info");
+          setError("No data available under /Hydroponic_Data");
           setIsLoading(false);
           return;
         }
 
-        // Process all data for chart
         const tdsChart: number[] = [];
         const newLabels: string[] = [];
         const newHistoryData: {timestamp: string, value: number}[] = [];
 
-        // Loop through all dates and times to collect TDS data
+        // 2. Logika looping disesuaikan dengan struktur data baru
         Object.keys(allData).sort().forEach(date => {
-          Object.keys(allData[date]).sort().forEach(time => {
-            if (allData[date][time].sensor_tds) {
-              const timestamp = `${date} ${time}`;
-              const value = parseInt(allData[date][time].sensor_tds);
+          // Loop melalui ID urutan (contoh: '00-01', '00-02')
+          Object.keys(allData[date]).sort().forEach(id => {
+            const entry = allData[date][id];
+            
+            // 3. Ambil data dari field 'tds1_ppm'
+            if (entry && typeof entry.tds1_ppm !== 'undefined') {
+              // 4. Gunakan 'timestamp_iso' untuk waktu yang akurat
+              const timestamp = entry.timestamp_iso || `${date} ${id.replace('-', ':')}`;
+              const value = parseFloat(entry.tds1_ppm);
               
-              newLabels.push(timestamp);
-              tdsChart.push(value);
-              newHistoryData.push({timestamp, value});
+              if (!isNaN(value)) {
+                newLabels.push(timestamp);
+                tdsChart.push(value);
+                newHistoryData.push({timestamp, value});
+              }
             }
           });
         });
 
-        // Filter data based on time range
         const filteredLabels = filterLabels(newLabels, timeRange);
         const newLabelsLimited = filteredLabels.slice(-30);
         const filteredTDS = filterData(tdsChart, newLabels, newLabelsLimited);
 
-        // Get latest reading
-        if (tdsChart.length > 0) {
+        if (newLabels.length > 0) {
           const latestValue = tdsChart[tdsChart.length - 1];
+          const latestTimestamp = moment(newLabels[newLabels.length - 1]).format('YYYY-MM-DD HH:mm:ss');
           setTdsValue(latestValue);
-          setTimestamp(newLabels[newLabels.length - 1]);
+          setTimestamp(latestTimestamp);
         }
 
-        // Update chart data
         setChartData({ tds: filteredTDS });
         setLabels(newLabelsLimited);
-        setHistoryData(newHistoryData.reverse()); // Reverse to show latest first
+        setHistoryData(newHistoryData.reverse());
         setError("");
 
       } catch (error) {
@@ -116,23 +120,13 @@ export default function TDSControl() {
     let cutoffDate = now.clone();
     
     switch (range) {
-      case "1d":
-        cutoffDate.subtract(1, 'days');
-        break;
-      case "7d":
-        cutoffDate.subtract(7, 'days');
-        break;
-      case "1m":
-        cutoffDate.subtract(1, 'months');
-        break;
-      default:
-        cutoffDate.subtract(1, 'days');
+      case "1d": cutoffDate.subtract(1, 'days'); break;
+      case "7d": cutoffDate.subtract(7, 'days'); break;
+      case "1m": cutoffDate.subtract(1, 'months'); break;
+      default: cutoffDate.subtract(1, 'days');
     }
 
-    return labels.filter(label => {
-      const labelDate = moment(label, "YYYY-MM-DD HH:mm");
-      return labelDate.isSameOrAfter(cutoffDate);
-    });
+    return labels.filter(label => moment(label).isSameOrAfter(cutoffDate));
   };
 
   const filterData = (data: number[], originalLabels: string[], filteredLabels: string[]) => {
@@ -146,7 +140,6 @@ export default function TDSControl() {
 
   useEffect(() => {
     if (isOpen && chartRef.current && chartData.tds.length > 0) {
-      // Destroy previous chart if exists
       if ((chartRef.current as any).chart) {
         (chartRef.current as any).chart.destroy();
       }
@@ -171,18 +164,15 @@ export default function TDSControl() {
             responsive: true,
             scales: {
               x: {
-                type: "category",
-                ticks: {
-                  maxRotation: 45,
-                  minRotation: 45
+                type: 'time', // Gunakan 'time' scale untuk timestamp ISO
+                time: {
+                    unit: 'hour',
+                    tooltipFormat: 'YYYY-MM-DD HH:mm',
                 }
               },
               y: {
                 beginAtZero: true,
-                title: {
-                  display: true,
-                  text: 'TDS Value (PPM)'
-                }
+                title: { display: true, text: 'TDS Value (PPM)' }
               },
             },
           },
@@ -217,11 +207,14 @@ export default function TDSControl() {
     setTimeRange(range);
   };
 
+  // Anda bisa sesuaikan rentang nilai normal ini jika perlu
+  const isNormal = tdsValue >= 1200 && tdsValue <= 1400;
+
   return (
     <div className="space-y-4 p-4">
       <div className="text-center">
         <h1 className="text-2xl font-bold">Monitoring TDS</h1>
-        <p className="text-gray-600">Total Dissolved Solids (Normal: 1200-1400 PPM)</p>
+        <p className="text-gray-600 mb-4">Total Dissolved Solids (Normal: 1200-1400 PPM)</p>
       </div>
 
       <Card className="max-w-md mx-auto">
@@ -235,19 +228,15 @@ export default function TDSControl() {
               height={200}
               sx={{
                 [`& .${gaugeClasses.valueArc}`]: {
-                  fill: tdsValue >= 1200 && tdsValue <= 1400 ? '#4CAF50' : '#F44336',
+                  fill: isNormal ? '#4CAF50' : '#F44336',
                 },
               }}
             />
           </div>
 
           <div className="space-y-2">
-            <Chip 
-              color={tdsValue >= 1200 && tdsValue <= 1400 ? 'success' : 'danger'}
-              variant="flat"
-              size="lg"
-            >
-              {tdsValue >= 1200 && tdsValue <= 1400 ? 'Normal' : 'Tidak Normal'}
+            <Chip color={isNormal ? 'success' : 'danger'} variant="flat" size="lg">
+              {isNormal ? 'Normal' : 'Tidak Normal'}
             </Chip>
             <p className="text-2xl font-bold">{tdsValue} PPM</p>
             <p className="text-sm text-gray-600">Terakhir diperbarui: {timestamp}</p>
