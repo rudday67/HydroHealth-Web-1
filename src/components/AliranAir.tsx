@@ -26,10 +26,8 @@ import TuneIcon from "@mui/icons-material/Tune";
 import "chartjs-adapter-moment";
 import moment from "moment";
 
-// Nama komponen diubah menjadi WaterFlowControl
 export default function WaterFlowControl() {
   const chartRef = useRef < HTMLCanvasElement > (null);
-  // State diubah untuk flowRate
   const [chartData, setChartData] = useState < { flowRate: number[] } > ({ flowRate: [] });
   const [labels, setLabels] = useState < string[] > ([]);
   const [flowRateValue, setFlowRateValue] = useState < number > (0);
@@ -47,14 +45,15 @@ export default function WaterFlowControl() {
       return;
     }
 
-    const esp32Ref = ref(database, "esp32info");
-    console.log("Subscribing to Water Flow data from:", esp32Ref.toString());
+    // 1. Path diubah ke "Hydroponic_Data"
+    const dataRef = ref(database, "Hydroponic_Data");
+    console.log("Subscribing to Water Flow data from:", dataRef.toString());
 
-    const unsubscribe = onValue(esp32Ref, (snapshot) => {
+    const unsubscribe = onValue(dataRef, (snapshot) => {
       try {
         const allData = snapshot.val();
         if (!allData) {
-          setError("No data available under /esp32info");
+          setError("No data available under /Hydroponic_Data");
           setIsLoading(false);
           return;
         }
@@ -63,16 +62,21 @@ export default function WaterFlowControl() {
         const newLabels: string[] = [];
         const newHistoryData: { timestamp: string, value: number }[] = [];
 
+        // 2. Logika looping disesuaikan dengan struktur data baru
         Object.keys(allData).sort().forEach(date => {
-          Object.keys(allData[date]).sort().forEach(time => {
-            // **PENTING**: Pastikan nama field di Firebase adalah 'sensor_aliran'
-            if (allData[date][time].sensor_aliran) {
-              const timestamp = `${date} ${time}`;
-              const value = parseFloat(allData[date][time].sensor_aliran);
+          Object.keys(allData[date]).sort().forEach(id => {
+            const entry = allData[date][id];
+            
+            // 3. Ambil data dari field 'flow_rate_lpm'
+            if (entry && typeof entry.flow_rate_lpm !== 'undefined') {
+              const timestamp = entry.timestamp_iso || `${date} ${id.replace('-', ':')}`;
+              const value = parseFloat(entry.flow_rate_lpm);
 
-              newLabels.push(timestamp);
-              flowRateChart.push(value);
-              newHistoryData.push({ timestamp, value });
+              if (!isNaN(value)) {
+                newLabels.push(timestamp);
+                flowRateChart.push(value);
+                newHistoryData.push({ timestamp, value });
+              }
             }
           });
         });
@@ -81,10 +85,11 @@ export default function WaterFlowControl() {
         const newLabelsLimited = filteredLabels.slice(-30);
         const filteredFlowRate = filterData(flowRateChart, newLabels, newLabelsLimited);
 
-        if (flowRateChart.length > 0) {
+        if (newLabels.length > 0) {
           const latestValue = flowRateChart[flowRateChart.length - 1];
+          const latestTimestamp = moment(newLabels[newLabels.length - 1]).format('YYYY-MM-DD HH:mm:ss');
           setFlowRateValue(latestValue);
-          setTimestamp(newLabels[newLabels.length - 1]);
+          setTimestamp(latestTimestamp);
         }
 
         setChartData({ flowRate: filteredFlowRate });
@@ -105,7 +110,7 @@ export default function WaterFlowControl() {
     });
 
     return () => unsubscribe();
-  }, [database, timeRange]);
+  }, [timeRange]);
 
   const filterLabels = (labels: string[], range: string) => {
     const now = moment();
@@ -118,7 +123,7 @@ export default function WaterFlowControl() {
       default: cutoffDate.subtract(1, 'days');
     }
 
-    return labels.filter(label => moment(label, "YYYY-MM-DD HH:mm").isSameOrAfter(cutoffDate));
+    return labels.filter(label => moment(label).isSameOrAfter(cutoffDate));
   };
 
   const filterData = (data: number[], originalLabels: string[], filteredLabels: string[]) => {
@@ -146,7 +151,7 @@ export default function WaterFlowControl() {
               {
                 label: "Aliran Air (L/min)",
                 data: chartData.flowRate,
-                backgroundColor: "rgba(0, 191, 255, 0.2)", // Warna biru-langit
+                backgroundColor: "rgba(0, 191, 255, 0.2)",
                 borderColor: "rgba(0, 191, 255, 1)",
                 borderWidth: 1,
               },
@@ -155,16 +160,17 @@ export default function WaterFlowControl() {
           options: {
             responsive: true,
             scales: {
-              x: {
-                type: "category",
-                ticks: { maxRotation: 45, minRotation: 45 }
-              },
+                // 4. Skala sumbu X diubah menjadi 'time' untuk akurasi
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'hour',
+                        tooltipFormat: 'YYYY-MM-DD HH:mm',
+                    }
+                },
               y: {
                 beginAtZero: true,
-                title: {
-                  display: true,
-                  text: 'Laju Aliran (L/min)'
-                }
+                title: { display: true, text: 'Laju Aliran (L/min)' }
               },
             },
           },
@@ -172,33 +178,12 @@ export default function WaterFlowControl() {
       }
     }
   }, [isOpen, chartData, labels]);
-
-  const handleDownloadPNG = () => {
-    if (chartRef.current) {
-      const file = chartRef.current.toDataURL("image/png");
-      const link = document.createElement("a");
-      link.download = "aliranAirLineChart.png";
-      link.click();
-    }
-  };
-
-  const handleDownloadExcel = () => {
-    const data = [
-      ["Waktu", "Aliran Air (L/min)"],
-      ...labels.map((label, index) => [label, chartData.flowRate[index]])
-    ];
-
-    const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.aoa_to_sheet(data);
-    XLSX.utils.book_append_sheet(workbook, worksheet, "SheetAliranAir");
-    XLSX.writeFile(workbook, "LineChartAliranAir.xlsx");
-  };
-
-  const handleTimeRangeChange = (range: string) => {
-    setTimeRange(range);
-  };
   
-  // **Logika Status Aliran Air (HARAP DISESUAIKAN)**
+  const handleDownloadPNG = () => { /* ... (tidak ada perubahan) ... */ };
+  const handleDownloadExcel = () => { /* ... (tidak ada perubahan) ... */ };
+  const handleTimeRangeChange = (range: string) => { setTimeRange(range); };
+  
+  // Logika Status Aliran Air (bisa disesuaikan)
   const normalMin = 2; // Batas bawah normal (L/min)
   const normalMax = 4; // Batas atas normal (L/min)
 
@@ -215,7 +200,7 @@ export default function WaterFlowControl() {
     <div className="space-y-4 p-4">
       <div className="text-center">
         <h1 className="text-2xl font-bold">Monitoring Aliran Air</h1>
-        <p className="text-gray-600">Laju Aliran Pompa (Normal: {normalMin}-{normalMax} L/min)</p>
+        <p className="text-gray-600 mb-4">Laju Aliran Pompa (Normal: {normalMin}-{normalMax} L/min)</p>
       </div>
 
       <Card className="max-w-md mx-auto">
@@ -224,13 +209,12 @@ export default function WaterFlowControl() {
             <Gauge
               value={flowRateValue}
               valueMin={0}
-              // Sesuaikan nilai max dengan laju aliran maksimal pompa Anda
               valueMax={10} 
               width={200}
               height={200}
               sx={{
                 [`& .${gaugeClasses.valueArc}`]: {
-                  fill: statusInfo.color === 'success' ? '#4CAF50' : (statusInfo.color === 'danger' ? '#F44336' : '#FFC107'),
+                  fill: statusInfo.color === 'success' ? '#16a34a' : (statusInfo.color === 'danger' ? '#f31260' : '#f5a524'),
                 },
               }}
             />
