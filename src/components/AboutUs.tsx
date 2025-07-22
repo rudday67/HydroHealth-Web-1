@@ -1,5 +1,6 @@
 import { Card, CardFooter, Image } from "@nextui-org/react";
-import TeamPic from "@/assets/images/components/TeamPic.jpg";
+// 1. Ubah import dari foto4.jpg menjadi foto3.jpg
+import foto3 from "@/assets/images/components/foto3.jpg";
 
 export default function AboutUs() {
   return (
@@ -25,7 +26,8 @@ export default function AboutUs() {
         >
           <Image
             alt="Tim HydroHealth"
-            src={TeamPic.src}
+            // 2. Ubah src dari foto4.src menjadi foto3.src
+            src={foto3.src}
             removeWrapper
             className="z-0 w-full h-full object-cover"
           />

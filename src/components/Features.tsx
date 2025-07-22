@@ -1,4 +1,4 @@
-import Fitur1 from "../assets/images/components/Fitur1.jpg";
+import foto2 from "../assets/images/components/foto2.jpg"; // <-- 1. Ubah import ini
 import Fitur2 from "../assets/images/components/Fitur2.jpg";
 import Fitur3 from "../assets/images/components/Fitur3.jpg";
 import Fitur4 from "../assets/images/components/Fitur4.jpg";
@@ -61,7 +61,6 @@ export default function Features() {
   return (
     <section className="py-12 px-4 max-w-7xl mx-auto">
       <div className="text-center mb-12">
-        {/* <Chip color="success" variant="flat" className="mb-4">Fitur Unggulan</Chip> */}
         <h2 className="text-4xl font-bold mb-2">Teknologi Canggih untuk Pertanian Modern</h2>
         <p className="text-lg text-default-500">Solusi lengkap untuk monitoring dan perawatan tanaman hidroponik</p>
       </div>
@@ -90,7 +89,7 @@ export default function Features() {
         <div className="lg:w-1/2">
           <Image
             isZoomed
-            src={Fitur1.src}
+            src={foto2.src} // <-- 2. Ubah src ini
             alt="Demo Produk"
             className="rounded-xl shadow-lg"
           />
