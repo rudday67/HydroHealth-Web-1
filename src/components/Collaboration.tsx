@@ -11,7 +11,8 @@ import LogoUndiksha from "@/assets/images/logo/LogoUndiksha.png";
 import LogoDagoEngineering from "@/assets/images/logo/LogoDagoEng.png";
 import LogoCGPDagoEng from "@/assets/images/logo/LogoCGPDagoEng.png";
 import LogoDelectra from "@/assets/images/logo/LogoDelectra.png";
-import FTKxDago from "@/assets/images/components/FTKxDago.png";
+// 1. Ubah import dari FTKxDago.png menjadi foto1.jpg
+import foto1 from "@/assets/images/components/foto1.jpg";
 
 export default function Collaboration() {
   const partners = [
@@ -106,7 +107,8 @@ export default function Collaboration() {
         >
           <Image
             alt="Kolaborasi FTK Undiksha dan Dago Engineering"
-            src={FTKxDago.src}
+            // 2. Ubah src dari FTKxDago.src menjadi foto1.src
+            src={foto1.src}
             removeWrapper
             className="z-0 w-full h-full object-cover"
           />
