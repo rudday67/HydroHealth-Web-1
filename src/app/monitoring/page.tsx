@@ -6,8 +6,8 @@ import PompaControl from "../../components/PompaControl";
 import NutritionControl from "../../components/TDSControl";
 import PengadukControl from "../../components/PengadukControl";
 import PelindungControl from "../../components/PelindungControl";
-import PestisidaControl from "../../components/PestisidaControl";
-import PupukDaunControl from "../../components/PupukDaunControl";
+import PestisidaControl from "../../components/KurasControl";
+import PupukDaunControl from "../../components/IrigasiControl";
 import PhControl from "../../components/PhControl";
 // import SuhuControl from "../../components/SuhuControl";
 import KualitasAir from "@/components/KualitasAir";
@@ -256,24 +256,24 @@ export default function Monitoring() {
                   <p className="font-semibold text-base sm:text-xl pt-4">
                     Kontrol Hidroponik
                   </p>
-                  <div className="grid grid-cols-2 gap-1 sm:grid-cols-4 sm:gap-2 justify-center">
-                    <PelindungControl />
+                   <div className="col-span-1 sm:col-span-4 flex justify-center gap-4">
+                    {/* <PelindungControl /> */}
                     <PengadukControl />
                     <PupukDaunControl />
                     <PestisidaControl />
-                    <PompaControl />
+                    {/* <PompaControl />
                     <SumberAir />
                     <PembuanganAirKontainer />
-                    <PembuanganAirPipa />
+                    <PembuanganAirPipa /> */}
                   </div>
                 </div>
 
-                <div className="flex flex-col justify-center items-center gap-2 w-full sm:w-10/12 mx-auto text-sm outline outline-2 rounded-lg mt-4">
+                {/* <div className="flex flex-col justify-center items-center gap-2 w-full sm:w-10/12 mx-auto text-sm outline outline-2 rounded-lg mt-4">
                   <p className="font-semibold text-base sm:text-xl  pt-4">
                     Manajemen Tanaman
                   </p>
                   <AddTanaman />
-                </div>
+                </div> */}
               </>
             )}
           </div>
@@ -286,13 +286,14 @@ export default function Monitoring() {
               {renderProgressBar("Sisa Larutan Pestisida", sisaPestisida, BugReport)}
             </div> */}
             <div className="grid grid-cols-1 mb-2 sm:grid-cols-4 gap-4  sm:w-[90%] w-full sm:mx-12">
-              {renderProgressBar("Sisa Larutan Nutrisi AB", sisaNutrisiAB, Nature)}
+              {/* {renderProgressBar("Sisa Larutan Nutrisi AB", sisaNutrisiAB, Nature)} */}
               {/* {renderProgressBar("Sisa Larutan pH Up", pHUp, Opacity)} */}
-              {renderProgressBar("Sisa Larutan pH Down", pHDown, Opacity)}
+              {/* {renderProgressBar("Sisa Larutan pH Down", pHDown, Opacity)} */}
               {/* {renderProgressBar("Sisa Larutan Kontainer", sisaKontainer, WaterDrop)} */}
-              {renderProgressBar("Sisa Larutan Pupuk Daun", sisaPupukDaun, LocalFlorist)}
-              {renderProgressBar("Sisa Larutan Pestisida", sisaPestisida, BugReport)}
+              {/* {renderProgressBar("Sisa Larutan Pupuk Daun", sisaPupukDaun, LocalFlorist)} */}
+              {/* {renderProgressBar("Sisa Larutan Pestisida", sisaPestisida, BugReport)} */}
               {/* <div>
+              </div>
               {weatherInfo && (
                 <Card className="flex flex-col items-center justify-center p-4 mt-4  w-full sm:mx-12 rounded-lg outline outline-2">
                   <p className="font-semibold text-md">Monitoring dan Kontrol Nutrisi</p>
